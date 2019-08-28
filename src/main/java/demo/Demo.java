@@ -21,10 +21,10 @@ public class Demo {
         storageController = context.getBean(StorageController.class);
 
         //crudStorage();
-        //crudFile();
+        crudFile();
         //putDelete();
         //transferAll();
-        transferFile();
+        //transferFile();
     }
 
     private static void crudStorage() throws Exception {
@@ -53,7 +53,7 @@ public class Demo {
         Storage storage1 = new Storage(formats, "USA", 1200);
         storageController.save(storage1);
 
-        File file = new File("Fname", "jpg", 3, storage1);
+        File file = new File("Fname", "jpg", 3);
 
         System.out.println("saving file...");
         System.out.println(fileController.save(file));

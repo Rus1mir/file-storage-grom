@@ -6,6 +6,7 @@ import org.hibernate.SessionFactory;
 import org.hibernate.query.Query;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.util.Collections;
 import java.util.List;
 
 public class FileDAO {
@@ -25,11 +26,14 @@ public class FileDAO {
 
     public File findById(long id) {
 
-        //return sessionFactory.getCurrentSession().get(File.class, id);
         Session session = sessionFactory.getCurrentSession();
-        Query<File> query = session.createQuery("from File f join fetch f.storage s where f.id = :id", File.class);
-        query.setParameter("id", id);
-        return query.getSingleResult();
+        return session.find(File.class, id,
+                Collections.singletonMap("javax.persistence.fetchgraph",
+                        session.getEntityGraph("file.storage")));
+        //Session session = sessionFactory.getCurrentSession();
+        //Query<File> query = session.createQuery("from File f join fetch f.storage s where f.id = :id", File.class);
+        //query.setParameter("id", id);
+        //return query.getSingleResult();
     }
 
     public File update(File storage) {

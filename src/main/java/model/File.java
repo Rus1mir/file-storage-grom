@@ -2,6 +2,7 @@ package model;
 
 import javax.persistence.*;
 
+@NamedEntityGraph(name = "file.storage", attributeNodes = @NamedAttributeNode("storage"))
 @Entity
 @Table(name = "FILES")
 public class File {
@@ -12,11 +13,10 @@ public class File {
     private long size;
     private Storage storage;
 
-    public File(String name, String format, long size, Storage storage) {
+    public File(String name, String format, long size) {
         this.name = name;
         this.format = format;
         this.size = size;
-        this.storage = storage;
     }
 
     public File() {
