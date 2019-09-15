@@ -1,10 +1,14 @@
-package dao;
+package com.dao;
 
-import model.Storage;
+import com.model.Storage;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Repository;
 
+import javax.persistence.EntityNotFoundException;
+
+@Repository
 public class StorageDAO {
     private SessionFactory sessionFactory;
 
@@ -22,7 +26,11 @@ public class StorageDAO {
 
     public Storage findById(long id) {
 
-        return (Storage) sessionFactory.getCurrentSession().get(Storage.class, id);
+        Storage storage = sessionFactory.getCurrentSession().get(Storage.class, id);
+
+        if(storage == null)
+            throw new EntityNotFoundException("Storage id: " + id + " was not found");
+        return storage;
     }
 
     public Storage update(Storage storage) {
