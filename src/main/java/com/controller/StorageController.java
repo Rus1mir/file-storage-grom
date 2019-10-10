@@ -1,8 +1,9 @@
 package com.controller;
 
+import com.dao.StorageDAO;
 import com.model.Storage;
-import org.springframework.beans.factory.annotation.Autowired;
 import com.service.StorageService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +21,8 @@ import javax.persistence.EntityNotFoundException;
 public class StorageController {
 
     private StorageService storageService;
+    @Autowired
+    StorageDAO dao;
 
     @Autowired
     public StorageController(StorageService storageService) {

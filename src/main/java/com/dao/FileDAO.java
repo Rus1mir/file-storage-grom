@@ -1,5 +1,6 @@
 package com.dao;
 
+import com.exception.BadRequestException;
 import com.model.File;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
@@ -8,8 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import javax.persistence.EntityNotFoundException;
+import javax.persistence.NoResultException;
 import java.util.Collections;
-import java.util.List;
 
 @Repository
 public class FileDAO {
@@ -52,21 +53,58 @@ public class FileDAO {
         session.delete(session.load(File.class, id));
     }
 
-    public List<File> getFilesByStorageId(long id) {
+    public int deleteFileFromStorage(long storageId, long fileId) {
 
         Session session = sessionFactory.getCurrentSession();
-        Query<File> query = session.createQuery("from File f where f.storage.id = :id", File.class);
-        query.setParameter("id", id);
-        return query.getResultList();
+        Query query = session.createQuery("update File f set f.storage = null " +
+                "where f.id = :id " +
+                "and f.storage.id = :sId");
+
+        query.setParameter("id", fileId);
+        query.setParameter("sId", storageId);
+        return query.executeUpdate();
     }
 
-    public List<File> update(List<File> files) {
+    public int transferFile(long storageFromId, long storageToId, long id) {
 
         Session session = sessionFactory.getCurrentSession();
-        session.setJdbcBatchSize(12);
-        for (File f : files) {
-            session.update(f);
+        Query query = session.createQuery("update File f set f.storage = " +
+                "(from Storage s where s.id = :sToId) " +
+                "where f.id = :fId " +
+                "and f.storage.id = :sFromId ");
+
+        query.setParameter("sToId", storageToId);
+        query.setParameter("sFromId", storageFromId);
+        query.setParameter("fId", id);
+        return query.executeUpdate();
+    }
+
+    public int transferAll(long storageFromId, long storageToId) {
+
+        Session session = sessionFactory.getCurrentSession();
+        Query query = session.createQuery("update File f set f.storage = " +
+                "(from Storage s where s.id = :sToId) where " +
+                "f.storage.id = :sFromId");
+
+        query.setParameter("sToId", storageToId);
+        query.setParameter("sFromId", storageFromId);
+        return query.executeUpdate();
+    }
+
+    public long getSize(long id) throws Exception {
+        Session session = sessionFactory.getCurrentSession();
+
+        try {
+            Query<Long> query = session.createQuery(
+                    "select f.size " +
+                            "from File f " +
+                            "where f.id = :id",
+                    Long.class);
+
+            query.setParameter("id", id);
+            return query.getSingleResult();
+        } catch (NoResultException e) {
+            throw new BadRequestException("File id: " + id + " was not found");
         }
-        return files;
     }
 }

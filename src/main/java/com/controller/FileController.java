@@ -2,9 +2,8 @@ package com.controller;
 
 import com.exception.BadRequestException;
 import com.model.File;
-
-import org.springframework.beans.factory.annotation.Autowired;
 import com.service.FileService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import javax.persistence.EntityNotFoundException;
-;
 
 @Controller
 @RequestMapping("/file")
@@ -129,12 +127,7 @@ public class FileController {
         try {
 
             fileService.delete(storageId, fileId);
-
             return new ResponseEntity<>("File was deleted from storage", HttpStatus.OK);
-
-        } catch (EntityNotFoundException e) {
-
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
         } catch (BadRequestException e) {
 
             return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
@@ -146,16 +139,12 @@ public class FileController {
 
     @RequestMapping(method = RequestMethod.PUT, value = "/transferAll")
     public ResponseEntity<String> transferAll(@RequestParam(value = "from") long stIdFrom,
-                                             @RequestParam(value = "to") long stIdTo) {
+                                              @RequestParam(value = "to") long stIdTo) {
         try {
 
-            fileService.transferAll(stIdFrom, stIdTo);
+            int count = fileService.transferAll(stIdFrom, stIdTo);
 
-            return new ResponseEntity<>("Files was transferred successfully", HttpStatus.OK);
-
-        } catch (EntityNotFoundException e) {
-
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
+            return new ResponseEntity<>(count + " files was transferred successfully", HttpStatus.OK);
         } catch (BadRequestException e) {
 
             return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
@@ -174,10 +163,6 @@ public class FileController {
             fileService.transferFile(stIdFrom, stIdTo, fileId);
 
             return new ResponseEntity<>("Files was transferred successfully", HttpStatus.OK);
-
-        } catch (EntityNotFoundException e) {
-
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
         } catch (BadRequestException e) {
 
             return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
