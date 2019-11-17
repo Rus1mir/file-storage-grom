@@ -1,7 +1,7 @@
 package com.dao;
 
-import com.exception.BadRequestException;
 import com.model.File;
+import javassist.NotFoundException;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.query.Query;
@@ -10,11 +10,31 @@ import org.springframework.stereotype.Repository;
 
 import javax.persistence.EntityNotFoundException;
 import javax.persistence.NoResultException;
+import javax.transaction.Transactional;
 import java.util.Collections;
 
 @Repository
+@Transactional
 public class FileDAO {
+
     private SessionFactory sessionFactory;
+    private final String DELETE_FROM_STORAGE_REQ = "UPDATE File f set f.storage = NULL WHERE f.id = :ID " +
+            "AND f.storage.id = :S_ID";
+
+    private final String PUT_INTO_STORAGE_REQ = "UPDATE File f set f.storage = (FROM Storage s WHERE s.id = :S_ID) " +
+            "WHERE f.id = :F_ID";
+
+    private final String TRANSFER_FILE_REQ = "UPDATE File f set f.storage = (FROM Storage s WHERE s.id = :S_TO_ID) " +
+            "WHERE f.id = :F_ID AND f.storage.id = :S_FROM_ID";
+
+    private final String TRANSFER_ALL_REQ = "UPDATE File f SET f.storage = (FROM Storage s WHERE s.id = :S_TO_ID) " +
+            "WHERE f.storage.id = :S_FROM_ID";
+
+    private final String GET_SIZE_REQ = "SELECT f.size FROM File f WHERE f.id = :ID";
+
+    private final String GET_FORMAT_REQ = "SELECT f.format FROM File f WHERE f.id = :ID";
+
+    private final String GET_STORAGE_ID_REQ = "SELECT f.storage.id FROM File f WHERE f.id = :ID";
 
     @Autowired
     public FileDAO(SessionFactory sessionFactory) {
@@ -41,10 +61,10 @@ public class FileDAO {
         return file;
     }
 
-    public File update(File storage) {
+    public File update(File file) {
 
-        sessionFactory.getCurrentSession().update(storage);
-        return storage;
+        sessionFactory.getCurrentSession().update(file);
+        return file;
     }
 
     public void delete(long id) {
@@ -56,38 +76,41 @@ public class FileDAO {
     public int deleteFileFromStorage(long storageId, long fileId) {
 
         Session session = sessionFactory.getCurrentSession();
-        Query query = session.createQuery("update File f set f.storage = null " +
-                "where f.id = :id " +
-                "and f.storage.id = :sId");
+        Query query = session.createQuery(DELETE_FROM_STORAGE_REQ);
 
-        query.setParameter("id", fileId);
-        query.setParameter("sId", storageId);
+        query.setParameter("ID", fileId);
+        query.setParameter("S_ID", storageId);
         return query.executeUpdate();
     }
 
-    public int transferFile(long storageFromId, long storageToId, long id) {
+    public void putIntoStorage(long storageId, long id) {
 
         Session session = sessionFactory.getCurrentSession();
-        Query query = session.createQuery("update File f set f.storage = " +
-                "(from Storage s where s.id = :sToId) " +
-                "where f.id = :fId " +
-                "and f.storage.id = :sFromId ");
+        Query query = session.createQuery(PUT_INTO_STORAGE_REQ);
 
-        query.setParameter("sToId", storageToId);
-        query.setParameter("sFromId", storageFromId);
-        query.setParameter("fId", id);
-        return query.executeUpdate();
+        query.setParameter("S_ID", storageId);
+        query.setParameter("F_ID", id);
+        query.executeUpdate();
+    }
+
+    public void transferFile(Long storageFromId, long storageToId, long id) {
+
+        Session session = sessionFactory.getCurrentSession();
+        Query query = session.createQuery(TRANSFER_FILE_REQ);
+
+        query.setParameter("S_TO_ID", storageToId);
+        query.setParameter("S_FROM_ID", storageFromId);
+        query.setParameter("F_ID", id);
+        query.executeUpdate();
     }
 
     public int transferAll(long storageFromId, long storageToId) {
 
         Session session = sessionFactory.getCurrentSession();
-        Query query = session.createQuery("update File f set f.storage = " +
-                "(from Storage s where s.id = :sToId) where " +
-                "f.storage.id = :sFromId");
+        Query query = session.createQuery(TRANSFER_ALL_REQ);
 
-        query.setParameter("sToId", storageToId);
-        query.setParameter("sFromId", storageFromId);
+        query.setParameter("S_TO_ID", storageToId);
+        query.setParameter("S_FROM_ID", storageFromId);
         return query.executeUpdate();
     }
 
@@ -95,16 +118,38 @@ public class FileDAO {
         Session session = sessionFactory.getCurrentSession();
 
         try {
-            Query<Long> query = session.createQuery(
-                    "select f.size " +
-                            "from File f " +
-                            "where f.id = :id",
-                    Long.class);
+            Query<Long> query = session.createQuery(GET_SIZE_REQ, Long.class);
 
-            query.setParameter("id", id);
+            query.setParameter("ID", id);
             return query.getSingleResult();
         } catch (NoResultException e) {
-            throw new BadRequestException("File id: " + id + " was not found");
+            throw new NotFoundException("File id: " + id + " was not found");
+        }
+    }
+
+    public String getFormat(long id) throws Exception {
+        Session session = sessionFactory.getCurrentSession();
+
+        try {
+            Query<String> query = session.createQuery(GET_FORMAT_REQ, String.class);
+
+            query.setParameter("ID", id);
+            return query.getSingleResult();
+        } catch (NoResultException e) {
+            throw new NotFoundException("File id: " + id + " was not found");
+        }
+    }
+
+    public Long getStorageId(long id) throws Exception {
+        Session session = sessionFactory.getCurrentSession();
+
+        try {
+            Query<Long> query = session.createQuery(GET_STORAGE_ID_REQ, Long.class);
+
+            query.setParameter("ID", id);
+            return query.getSingleResult();
+        } catch (NoResultException e) {
+            throw new NotFoundException("File id: " + id + " was not found");
         }
     }
 }

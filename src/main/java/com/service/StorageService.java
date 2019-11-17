@@ -18,25 +18,21 @@ public class StorageService {
         this.storageDAO = storageDAO;
     }
 
-    @Transactional
     public Storage save(Storage storage) {
 
         return storageDAO.save(storage);
     }
 
-    @Transactional
-    public Storage findById(long id) {
+    public Storage findById(long id) throws Exception{
 
         return storageDAO.findById(id);
     }
 
-    @Transactional
     public Storage update(Storage storage) {
 
         return storageDAO.update(storage);
     }
 
-    @Transactional
     public void delete(long id) {
 
         storageDAO.delete(id);

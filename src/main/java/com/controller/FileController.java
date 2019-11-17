@@ -3,6 +3,7 @@ package com.controller;
 import com.exception.BadRequestException;
 import com.model.File;
 import com.service.FileService;
+import javassist.NotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -109,7 +110,7 @@ public class FileController {
 
             return new ResponseEntity<>(fileService.put(storageId, fileId), HttpStatus.OK);
 
-        } catch (EntityNotFoundException e) {
+        } catch (NotFoundException e) {
 
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         } catch (BadRequestException e) {
@@ -131,6 +132,9 @@ public class FileController {
         } catch (BadRequestException e) {
 
             return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (NotFoundException e) {
+
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
         } catch (Exception e) {
 
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
@@ -148,6 +152,9 @@ public class FileController {
         } catch (BadRequestException e) {
 
             return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (NotFoundException e) {
+
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
         } catch (Exception e) {
 
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
@@ -162,10 +169,13 @@ public class FileController {
 
             fileService.transferFile(stIdFrom, stIdTo, fileId);
 
-            return new ResponseEntity<>("Files was transferred successfully", HttpStatus.OK);
+            return new ResponseEntity<>("File was transferred successfully", HttpStatus.OK);
         } catch (BadRequestException e) {
 
             return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (NotFoundException e) {
+
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
         } catch (Exception e) {
 
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);

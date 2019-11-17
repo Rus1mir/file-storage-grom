@@ -4,10 +4,11 @@ import com.dao.FileDAO;
 import com.dao.StorageDAO;
 import com.exception.BadRequestException;
 import com.model.File;
+import javassist.NotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import javax.transaction.Transactional;
+import java.util.Collections;
 
 @Service
 public class FileService {
@@ -22,7 +23,6 @@ public class FileService {
         this.storageDAO = storageDAO;
     }
 
-    @Transactional
     public File save(File file) throws Exception {
 
         if (file.getName().length() > 10)
@@ -30,70 +30,97 @@ public class FileService {
         return fileDAO.saveEntity(file);
     }
 
-    @Transactional
     public File findById(long id) {
 
         return fileDAO.findById(id);
     }
 
-    @Transactional
     public File update(File file) {
 
         return fileDAO.update(file);
     }
 
-    @Transactional
     public void delete(long id) {
 
         fileDAO.delete(id);
     }
 
-    @Transactional
     public File put(long storageId, long fileId) throws Exception {
 
-        long freeSize;
-        freeSize = storageDAO.getMaxSize(storageId) - storageDAO.getOccupiedSize(storageId);
+        Long fileStorageId = fileDAO.getStorageId(fileId);
 
-        File file = fileDAO.findById(fileId);
+        if (fileStorageId != null)
+            throw new BadRequestException("File id: " + fileId + " is already exists in storage " + fileStorageId);
 
-        if (freeSize < file.getSize())
-            throw new BadRequestException("Free space in storage id: " + storageId +
-                    " is not enough for file id: " + fileId);
-
-        file.setStorage(storageDAO.findById(storageId));
-        return file;
+        validationPut(storageId, fileId);
+        fileDAO.putIntoStorage(storageId, fileId);
+        return fileDAO.findById(fileId);
     }
 
-    @Transactional
-    public void delete(long storageId, long fileId) throws BadRequestException {
+    public void delete(long storageId, long fileId) throws Exception {
 
         if (fileDAO.deleteFileFromStorage(storageId, fileId) == 0)
-            throw new BadRequestException("File id:" + fileId + " was not found in storage id: " + storageId);
+            throw new NotFoundException("File id:" + fileId + " was not found in storage id: " + storageId);
     }
 
-    @Transactional
     public void transferFile(long storageFromId, long storageToId, long id) throws Exception {
 
-        storageDAO.findById(storageFromId);
+        Long fileStorageId = fileDAO.getStorageId(id);
 
-        if (fileDAO.getSize(id) > storageDAO.getMaxSize(storageToId) - storageDAO.getOccupiedSize(storageToId))
-            throw new BadRequestException("Filed transfer file id:" + id + " from storage id: " + storageFromId +
-                    " to storage id: " + storageToId + " cause no enough free space");
+        if ((fileStorageId == null) || (fileStorageId != storageFromId))
+            throw new BadRequestException("File id: " + id + " was not found in storage id: " + storageFromId);
 
-        if (fileDAO.transferFile(storageFromId, storageToId, id) == 0)
-            throw new BadRequestException("Filed transfer file id:" + id + " from storage id: " + storageFromId +
-                    " to storage id: " + storageToId + " cause file not found in from side");
+        validationPut(storageToId, id);
+
+        fileDAO.transferFile(storageFromId, storageToId, id);
     }
 
-    @Transactional
     public int transferAll(long storageFromId, long storageToId) throws Exception {
 
-        storageDAO.findById(storageFromId);
+        validationTransferAll(storageFromId, storageToId);
 
-        if (storageDAO.getMaxSize(storageToId) - storageDAO.getOccupiedSize(storageToId) < storageDAO.getOccupiedSize(storageFromId))
+        return fileDAO.transferAll(storageFromId, storageToId);
+    }
+
+    private void validationPut(long storageId, long fileId) throws Exception {
+
+        //Size check
+        if (fileDAO.getSize(fileId) > storageDAO.getMaxSize(storageId) - storageDAO.getOccupiedSize(storageId))
+            throw new BadRequestException("Filed put file id:" + fileId + " to storage id: " + storageId +
+                    " cause no enough free space");
+
+        //Format check
+        if (!storageDAO.getFormatSupported(storageId).contains(fileDAO.getFormat(fileId)))
+            throw new BadRequestException("Format of file id: " + fileId +
+                    " is not support for Storage id: " + storageId);
+
+        //Duplicate check
+        if (storageDAO.getContainsFileIds(storageId).contains(fileId))
+            throw new BadRequestException("Storage id: " + storageId + " already contains file with id: " + fileId);
+    }
+
+    private void validationTransferAll(long storageFromId, long storageToId) throws Exception {
+
+        long occupiedSizeFrom = storageDAO.getOccupiedSize(storageFromId);
+
+        //Empty check
+        if (occupiedSizeFrom == 0)
+            throw new NotFoundException("Were is not found any files in storage id: " + storageFromId);
+
+        //Size check
+        if (storageDAO.getMaxSize(storageToId) - storageDAO.getOccupiedSize(storageToId) < occupiedSizeFrom)
             throw new BadRequestException("Filed transfer files from storage id: " + storageFromId +
                     " to storage id: " + storageToId + " cause no enough free space");
 
-        return fileDAO.transferAll(storageFromId, storageToId);
+        //Format check
+        if (!storageDAO.getFormatSupported(storageToId).containsAll(storageDAO.getContainingFormats(storageFromId))) {
+            throw new BadRequestException("Filed transfer files from storage id: " + storageFromId +
+                    " to storage id: " + storageToId + " cause destination storage not support one or more file format");
+        }
+
+        //Duplicate check
+        if (!Collections.disjoint(storageDAO.getContainsFileIds(storageFromId), storageDAO.getContainsFileIds(storageToId)))
+            throw new BadRequestException("Filed transfer files from storage id: " + storageFromId +
+                    " to storage id: " + storageToId + " cause destination storage contains one or more files with same id");
     }
 }
