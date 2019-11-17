@@ -1,6 +1,5 @@
 package com.dao;
 
-import com.exception.BadRequestException;
 import com.model.Storage;
 import javassist.NotFoundException;
 import org.hibernate.Session;
@@ -11,8 +10,6 @@ import org.springframework.stereotype.Repository;
 
 import javax.persistence.NoResultException;
 import javax.transaction.Transactional;
-import java.lang.reflect.Array;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -102,8 +99,8 @@ public class StorageDAO {
             Query<String[]> query = session.createQuery(FORMAT_SUPPORT_REQ, String[].class);
 
             query.setParameter("ID", id);
-            List<String> res = Arrays.asList(query.getSingleResult());
-            return res;
+            //List<String> res = Arrays.asList(query.getSingleResult());
+            return Arrays.asList(query.getSingleResult());
 
         } catch (NoResultException e) {
             throw new NotFoundException("Storage id: " + id + " was not found");
@@ -117,8 +114,8 @@ public class StorageDAO {
             Query<Long> query = session.createQuery(CONTAINS_FILES_REQ, Long.class);
 
             query.setParameter("S_ID", id);
-            List<Long> res = query.getResultList();
-            return res;
+            //List<Long> res = query.getResultList();
+            return query.getResultList();
 
         } catch (NoResultException e) {
             throw new NotFoundException("Storage id: " + id + " was not found");
@@ -132,8 +129,8 @@ public class StorageDAO {
             Query<String> query = session.createQuery(CONTAINING_FORMATS_REQ, String.class);
 
             query.setParameter("S_ID", id);
-            HashSet<String> res = new HashSet<>(query.getResultList());
-            return res;
+            //HashSet<String> res = new HashSet<>(query.getResultList());
+            return new HashSet<>(query.getResultList());
 
         } catch (NoResultException e) {
             throw new NotFoundException("Storage id: " + id + " was not found");
