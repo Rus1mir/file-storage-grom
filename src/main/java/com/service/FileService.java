@@ -7,6 +7,7 @@ import com.model.File;
 import javassist.NotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 
@@ -27,7 +28,7 @@ public class FileService {
 
         if (file.getName().length() > 10)
             throw new BadRequestException("File name id: " + file.getId() + " is too large, try with name < 10 symbols");
-        return fileDAO.saveEntity(file);
+        return fileDAO.save(file);
     }
 
     public File findById(long id) {

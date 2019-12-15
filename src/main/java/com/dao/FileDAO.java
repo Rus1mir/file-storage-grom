@@ -10,25 +10,25 @@ import org.springframework.stereotype.Repository;
 
 import javax.persistence.EntityNotFoundException;
 import javax.persistence.NoResultException;
-import javax.transaction.Transactional;
+
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.Collections;
 
 @Repository
-@Transactional
+@Transactional(rollbackFor = Exception.class)
 public class FileDAO {
 
     private SessionFactory sessionFactory;
-    private final String DELETE_FROM_STORAGE_REQ = "UPDATE File f set f.storage = NULL WHERE f.id = :ID " +
+    private final String DELETE_FROM_STORAGE_REQ = "UPDATE File f SET f.storage = NULL WHERE f.id = :F_ID " +
             "AND f.storage.id = :S_ID";
 
-    private final String PUT_INTO_STORAGE_REQ = "UPDATE File f set f.storage = (FROM Storage s WHERE s.id = :S_ID) " +
-            "WHERE f.id = :F_ID";
+    private final String PUT_INTO_STORAGE_REQ = "UPDATE File f SET f.storage.id = :S_ID WHERE f.id = :F_ID";
 
-    private final String TRANSFER_FILE_REQ = "UPDATE File f set f.storage = (FROM Storage s WHERE s.id = :S_TO_ID) " +
-            "WHERE f.id = :F_ID AND f.storage.id = :S_FROM_ID";
+    private final String TRANSFER_FILE_REQ = "UPDATE File f SET f.storage.id = :S_TO_ID " +
+            "WHERE f.storage.id = :S_FROM_ID AND f.id = :F_ID";
 
-    private final String TRANSFER_ALL_REQ = "UPDATE File f SET f.storage = (FROM Storage s WHERE s.id = :S_TO_ID) " +
-            "WHERE f.storage.id = :S_FROM_ID";
+    private final String TRANSFER_ALL_REQ = "UPDATE File f SET f.storage.id = :S_TO_ID WHERE f.storage.id = :S_FROM_ID";
 
     private final String GET_SIZE_REQ = "SELECT f.size FROM File f WHERE f.id = :ID";
 
@@ -42,15 +42,17 @@ public class FileDAO {
         this.sessionFactory = sessionFactory;
     }
 
-    public File saveEntity(File file) {
+    public File save(File file) {
 
-        sessionFactory.getCurrentSession().persist(file);
+        Session session = sessionFactory.getCurrentSession();
+        session.persist(file);
         return file;
     }
 
     public File findById(long id) {
 
         Session session = sessionFactory.getCurrentSession();
+
         File file = session.find(File.class, id,
                 Collections.singletonMap("javax.persistence.fetchgraph",
                         session.getEntityGraph("file.storage")));
@@ -59,11 +61,13 @@ public class FileDAO {
             throw new EntityNotFoundException("File with id: " + id + " was not found");
 
         return file;
+
     }
 
     public File update(File file) {
 
-        sessionFactory.getCurrentSession().update(file);
+        Session session = sessionFactory.getCurrentSession();
+        session.update(file);
         return file;
     }
 
@@ -78,9 +82,10 @@ public class FileDAO {
         Session session = sessionFactory.getCurrentSession();
         Query query = session.createQuery(DELETE_FROM_STORAGE_REQ);
 
-        query.setParameter("ID", fileId);
+        query.setParameter("F_ID", fileId);
         query.setParameter("S_ID", storageId);
         return query.executeUpdate();
+
     }
 
     public void putIntoStorage(long storageId, long id) {
@@ -88,8 +93,8 @@ public class FileDAO {
         Session session = sessionFactory.getCurrentSession();
         Query query = session.createQuery(PUT_INTO_STORAGE_REQ);
 
-        query.setParameter("S_ID", storageId);
         query.setParameter("F_ID", id);
+        query.setParameter("S_ID", storageId);
         query.executeUpdate();
     }
 
@@ -111,10 +116,12 @@ public class FileDAO {
 
         query.setParameter("S_TO_ID", storageToId);
         query.setParameter("S_FROM_ID", storageFromId);
+
         return query.executeUpdate();
     }
 
     public long getSize(long id) throws Exception {
+
         Session session = sessionFactory.getCurrentSession();
 
         try {
@@ -128,8 +135,8 @@ public class FileDAO {
     }
 
     public String getFormat(long id) throws Exception {
-        Session session = sessionFactory.getCurrentSession();
 
+        Session session = sessionFactory.getCurrentSession();
         try {
             Query<String> query = session.createQuery(GET_FORMAT_REQ, String.class);
 
@@ -141,6 +148,7 @@ public class FileDAO {
     }
 
     public Long getStorageId(long id) throws Exception {
+
         Session session = sessionFactory.getCurrentSession();
 
         try {

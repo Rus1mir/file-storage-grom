@@ -9,13 +9,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import javax.persistence.NoResultException;
-import javax.transaction.Transactional;
+
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 
 @Repository
-@Transactional
+@Transactional()
 public class StorageDAO {
 
     private SessionFactory sessionFactory;
@@ -38,13 +40,15 @@ public class StorageDAO {
 
     public Storage save(Storage storage) {
 
-        sessionFactory.getCurrentSession().persist(storage);
+        Session session = sessionFactory.getCurrentSession();
+        session.persist(storage);
         return storage;
     }
 
     public Storage findById(long id) throws Exception {
 
-        Storage storage = sessionFactory.getCurrentSession().get(Storage.class, id);
+        Session session = sessionFactory.getCurrentSession();
+        Storage storage = session.get(Storage.class, id);
 
         if (storage == null)
             throw new NotFoundException("Storage id: " + id + " was not found");
@@ -53,7 +57,8 @@ public class StorageDAO {
 
     public Storage update(Storage storage) {
 
-        sessionFactory.getCurrentSession().update(storage);
+        Session session = sessionFactory.getCurrentSession();
+        session.update(storage);
         return storage;
     }
 
@@ -64,11 +69,10 @@ public class StorageDAO {
     }
 
     public long getMaxSize(long id) throws Exception {
-
         Session session = sessionFactory.getCurrentSession();
+
         try {
             Query<Long> query = session.createQuery(REPO_SIZE_REQ, Long.class);
-
             query.setParameter("ID", id);
             return query.getSingleResult();
 
@@ -78,7 +82,6 @@ public class StorageDAO {
     }
 
     public long getOccupiedSize(long id) throws Exception {
-
         Session session = sessionFactory.getCurrentSession();
         try {
             Query<Long> query = session.createQuery(OCCUPIED_SIZE_REQ, Long.class);
@@ -93,7 +96,6 @@ public class StorageDAO {
     }
 
     public List<String> getFormatSupported(long id) throws Exception {
-
         Session session = sessionFactory.getCurrentSession();
         try {
             Query<String[]> query = session.createQuery(FORMAT_SUPPORT_REQ, String[].class);
@@ -108,7 +110,6 @@ public class StorageDAO {
     }
 
     public List<Long> getContainsFileIds(long id) throws Exception {
-
         Session session = sessionFactory.getCurrentSession();
         try {
             Query<Long> query = session.createQuery(CONTAINS_FILES_REQ, Long.class);
@@ -123,7 +124,6 @@ public class StorageDAO {
     }
 
     public HashSet<String> getContainingFormats(long id) throws Exception {
-
         Session session = sessionFactory.getCurrentSession();
         try {
             Query<String> query = session.createQuery(CONTAINING_FORMATS_REQ, String.class);
