@@ -4,14 +4,15 @@ import com.dao.FileDAO;
 import com.dao.StorageDAO;
 import com.exception.BadRequestException;
 import com.model.File;
+import com.model.Storage;
 import javassist.NotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
+import java.util.*;
 
 @Service
+//@Transactional(propagation = Propagation.REQUIRED)
 public class FileService {
 
     private FileDAO fileDAO;
@@ -31,7 +32,7 @@ public class FileService {
         return fileDAO.save(file);
     }
 
-    public File findById(long id) {
+    public File findById(long id) throws NotFoundException {
 
         return fileDAO.findById(id);
     }
@@ -48,80 +49,99 @@ public class FileService {
 
     public File put(long storageId, long fileId) throws Exception {
 
-        Long fileStorageId = fileDAO.getStorageId(fileId);
+        File file = fileDAO.findById(fileId);
 
-        if (fileStorageId != null)
-            throw new BadRequestException("File id: " + fileId + " is already exists in storage " + fileStorageId);
+        if (file.getStorage() != null)
+            throw new BadRequestException("File id: " + fileId + " is already exists in storage " +
+                    file.getStorage().getId() + " use transfer");
 
-        validationPut(storageId, fileId);
-        fileDAO.putIntoStorage(storageId, fileId);
-        return fileDAO.findById(fileId);
+        Storage storageTo = storageDAO.findById(storageId);
+        List<File> filesEx = fileDAO.getFilesByStorage(storageId);
+
+        validatePut(file, filesEx, storageTo);
+
+        file.setStorage(storageTo);
+        return update(file);
     }
 
     public void delete(long storageId, long fileId) throws Exception {
 
-        if (fileDAO.deleteFileFromStorage(storageId, fileId) == 0)
+        File file = findById(fileId);
+        Storage storage = storageDAO.findById(storageId);
+
+        if (!storage.equals(file.getStorage()))
             throw new NotFoundException("File id:" + fileId + " was not found in storage id: " + storageId);
+
+        file.setStorage(null);
+        update(file);
     }
 
     public void transferFile(long storageFromId, long storageToId, long id) throws Exception {
 
-        Long fileStorageId = fileDAO.getStorageId(id);
+        File file = findById(id);
+        Storage storageFrom = storageDAO.findById(storageFromId);
 
-        if ((fileStorageId == null) || (fileStorageId != storageFromId))
+        if (!storageFrom.equals(file.getStorage()))
             throw new BadRequestException("File id: " + id + " was not found in storage id: " + storageFromId);
 
-        validationPut(storageToId, id);
+        Storage storageTo = storageDAO.findById(storageToId);
+        List<File> filesEx = fileDAO.getFilesByStorage(storageToId);
 
-        fileDAO.transferFile(storageFromId, storageToId, id);
+        validatePut(file, filesEx, storageTo);
+
+        file.setStorage(storageTo);
+        update(file);
     }
 
     public int transferAll(long storageFromId, long storageToId) throws Exception {
 
-        validationTransferAll(storageFromId, storageToId);
+        Storage storageTo = storageDAO.findById(storageToId);
+        List<File> filesFrom = fileDAO.getFilesByStorage(storageFromId);
+        List<File> filesTo = fileDAO.getFilesByStorage(storageToId);
+
+        if (filesFrom.size() == 0)
+            throw new NotFoundException("No files for transfer");
+
+        validatePut(filesFrom, filesTo, storageTo);
 
         return fileDAO.transferAll(storageFromId, storageToId);
     }
 
-    private void validationPut(long storageId, long fileId) throws Exception {
+    private void validatePut(File filePut, List<File> filesEx, Storage storage) throws Exception {
 
-        //Size check
-        if (fileDAO.getSize(fileId) > storageDAO.getMaxSize(storageId) - storageDAO.getOccupiedSize(storageId))
-            throw new BadRequestException("Filed put file id:" + fileId + " to storage id: " + storageId +
-                    " cause no enough free space");
-
-        //Format check
-        if (!storageDAO.getFormatSupported(storageId).contains(fileDAO.getFormat(fileId)))
-            throw new BadRequestException("Format of file id: " + fileId +
-                    " is not support for Storage id: " + storageId);
-
-        //Duplicate check
-        if (storageDAO.getContainsFileIds(storageId).contains(fileId))
-            throw new BadRequestException("Storage id: " + storageId + " already contains file with id: " + fileId);
+        validation(filePut, filesEx, storage, getFreeSpace(storage, filesEx));
     }
 
-    private void validationTransferAll(long storageFromId, long storageToId) throws Exception {
+    private void validatePut(List<File> filesPut, List<File> filesEx, Storage storage) throws Exception {
 
-        long occupiedSizeFrom = storageDAO.getOccupiedSize(storageFromId);
+        long freeSpace = getFreeSpace(storage, filesEx);
 
-        //Empty check
-        if (occupiedSizeFrom == 0)
-            throw new NotFoundException("Were is not found any files in storage id: " + storageFromId);
+        for (File file : filesPut) {
+            validation(file, filesEx, storage, freeSpace);
+            freeSpace -= file.getSize();
+        }
+    }
+
+    private long getFreeSpace(Storage storage, List<File> files) {
+
+        long freeSpace = storage.getStorageSize();
+        for (File file : files) freeSpace -= file.getSize();
+        return freeSpace;
+    }
+
+    private void validation(File file, List<File> filesEx, Storage storage, long freeSpace) throws Exception {
 
         //Size check
-        if (storageDAO.getMaxSize(storageToId) - storageDAO.getOccupiedSize(storageToId) < occupiedSizeFrom)
-            throw new BadRequestException("Filed transfer files from storage id: " + storageFromId +
-                    " to storage id: " + storageToId + " cause no enough free space");
-
-        //Format check
-        if (!storageDAO.getFormatSupported(storageToId).containsAll(storageDAO.getContainingFormats(storageFromId))) {
-            throw new BadRequestException("Filed transfer files from storage id: " + storageFromId +
-                    " to storage id: " + storageToId + " cause destination storage not support one or more file format");
-        }
-
-        //Duplicate check
-        if (!Collections.disjoint(storageDAO.getContainsFileIds(storageFromId), storageDAO.getContainsFileIds(storageToId)))
-            throw new BadRequestException("Filed transfer files from storage id: " + storageFromId +
-                    " to storage id: " + storageToId + " cause destination storage contains one or more files with same id");
+        if (file.getSize() > freeSpace)
+            throw new BadRequestException("Filed put file to storage id: " + storage.getId() +
+                    " cause no enough free space");
+        //Duplicate
+        if (filesEx.contains(file))
+            throw new BadRequestException("Filed put file to storage id: " + storage.getId() +
+                    " cause storage already contains one or more equal files");
+        //Format
+        if (!Arrays.asList(storage.getFormatsSupported()).contains(file.getFormat()))
+            throw new BadRequestException("Filed put file to storage id: " + storage.getId() +
+                    " cause format " + file.getFormat() + " not supported");
     }
 }

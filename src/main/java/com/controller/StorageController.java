@@ -3,13 +3,13 @@ package com.controller;
 import com.dao.StorageDAO;
 import com.model.Storage;
 import com.service.StorageService;
+import javassist.NotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.orm.hibernate5.HibernateOptimisticLockingFailureException;
 import org.springframework.stereotype.Controller;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -22,11 +22,9 @@ import javax.persistence.EntityNotFoundException;
 public class StorageController {
 
     private StorageService storageService;
-    @Autowired
-    StorageDAO dao;
 
     @Autowired
-    public StorageController(StorageService storageService) {
+    public StorageController(StorageService storageService, StorageDAO dao) {
         this.storageService = storageService;
     }
 
@@ -53,7 +51,7 @@ public class StorageController {
             Storage storage = storageService.findById(id);
 
             return new ResponseEntity<>(storage, HttpStatus.OK);
-        } catch (EntityNotFoundException e) {
+        } catch (NotFoundException e) {
 
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         } catch (Exception e) {

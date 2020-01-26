@@ -7,34 +7,21 @@ import org.hibernate.SessionFactory;
 import org.hibernate.query.Query;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
-
-import javax.persistence.EntityNotFoundException;
-import javax.persistence.NoResultException;
-
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.Collections;
+import java.util.List;
+
 
 @Repository
-@Transactional(rollbackFor = Exception.class)
+@Transactional(propagation = Propagation.REQUIRED)
 public class FileDAO {
 
     private SessionFactory sessionFactory;
-    private final String DELETE_FROM_STORAGE_REQ = "UPDATE File f SET f.storage = NULL WHERE f.id = :F_ID " +
-            "AND f.storage.id = :S_ID";
-
-    private final String PUT_INTO_STORAGE_REQ = "UPDATE File f SET f.storage.id = :S_ID WHERE f.id = :F_ID";
-
-    private final String TRANSFER_FILE_REQ = "UPDATE File f SET f.storage.id = :S_TO_ID " +
-            "WHERE f.storage.id = :S_FROM_ID AND f.id = :F_ID";
 
     private final String TRANSFER_ALL_REQ = "UPDATE File f SET f.storage.id = :S_TO_ID WHERE f.storage.id = :S_FROM_ID";
 
-    private final String GET_SIZE_REQ = "SELECT f.size FROM File f WHERE f.id = :ID";
-
-    private final String GET_FORMAT_REQ = "SELECT f.format FROM File f WHERE f.id = :ID";
-
-    private final String GET_STORAGE_ID_REQ = "SELECT f.storage.id FROM File f WHERE f.id = :ID";
+    private final String GET_FILES_BY_STORAGE = "SELECT f FROM File f WHERE f.storage.id = : S_ID";
 
     @Autowired
     public FileDAO(SessionFactory sessionFactory) {
@@ -49,7 +36,7 @@ public class FileDAO {
         return file;
     }
 
-    public File findById(long id) {
+    public File findById(long id) throws NotFoundException {
 
         Session session = sessionFactory.getCurrentSession();
 
@@ -58,10 +45,9 @@ public class FileDAO {
                         session.getEntityGraph("file.storage")));
 
         if (file == null)
-            throw new EntityNotFoundException("File with id: " + id + " was not found");
+            throw new NotFoundException("File with id: " + id + " was not found");
 
         return file;
-
     }
 
     public File update(File file) {
@@ -77,38 +63,6 @@ public class FileDAO {
         session.delete(session.load(File.class, id));
     }
 
-    public int deleteFileFromStorage(long storageId, long fileId) {
-
-        Session session = sessionFactory.getCurrentSession();
-        Query query = session.createQuery(DELETE_FROM_STORAGE_REQ);
-
-        query.setParameter("F_ID", fileId);
-        query.setParameter("S_ID", storageId);
-        return query.executeUpdate();
-
-    }
-
-    public void putIntoStorage(long storageId, long id) {
-
-        Session session = sessionFactory.getCurrentSession();
-        Query query = session.createQuery(PUT_INTO_STORAGE_REQ);
-
-        query.setParameter("F_ID", id);
-        query.setParameter("S_ID", storageId);
-        query.executeUpdate();
-    }
-
-    public void transferFile(Long storageFromId, long storageToId, long id) {
-
-        Session session = sessionFactory.getCurrentSession();
-        Query query = session.createQuery(TRANSFER_FILE_REQ);
-
-        query.setParameter("S_TO_ID", storageToId);
-        query.setParameter("S_FROM_ID", storageFromId);
-        query.setParameter("F_ID", id);
-        query.executeUpdate();
-    }
-
     public int transferAll(long storageFromId, long storageToId) {
 
         Session session = sessionFactory.getCurrentSession();
@@ -120,44 +74,12 @@ public class FileDAO {
         return query.executeUpdate();
     }
 
-    public long getSize(long id) throws Exception {
+    public List<File> getFilesByStorage(Long storageId) {
 
         Session session = sessionFactory.getCurrentSession();
+        Query<File> query = session.createQuery(GET_FILES_BY_STORAGE, File.class);
 
-        try {
-            Query<Long> query = session.createQuery(GET_SIZE_REQ, Long.class);
-
-            query.setParameter("ID", id);
-            return query.getSingleResult();
-        } catch (NoResultException e) {
-            throw new NotFoundException("File id: " + id + " was not found");
-        }
-    }
-
-    public String getFormat(long id) throws Exception {
-
-        Session session = sessionFactory.getCurrentSession();
-        try {
-            Query<String> query = session.createQuery(GET_FORMAT_REQ, String.class);
-
-            query.setParameter("ID", id);
-            return query.getSingleResult();
-        } catch (NoResultException e) {
-            throw new NotFoundException("File id: " + id + " was not found");
-        }
-    }
-
-    public Long getStorageId(long id) throws Exception {
-
-        Session session = sessionFactory.getCurrentSession();
-
-        try {
-            Query<Long> query = session.createQuery(GET_STORAGE_ID_REQ, Long.class);
-
-            query.setParameter("ID", id);
-            return query.getSingleResult();
-        } catch (NoResultException e) {
-            throw new NotFoundException("File id: " + id + " was not found");
-        }
+        query.setParameter("S_ID", storageId);
+        return query.getResultList();
     }
 }

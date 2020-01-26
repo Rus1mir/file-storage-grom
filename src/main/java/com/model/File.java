@@ -1,6 +1,7 @@
 package com.model;
 
 import javax.persistence.*;
+import java.util.Objects;
 
 @NamedEntityGraph(name = "file.storage", attributeNodes = @NamedAttributeNode("storage"))
 @Entity
@@ -80,5 +81,19 @@ public class File {
                 ", size=" + size +
                 ", storage=" + storage +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        File file = (File) o;
+        return id == file.id &&
+                name.equals(file.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, name);
     }
 }

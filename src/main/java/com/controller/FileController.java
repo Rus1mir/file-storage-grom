@@ -15,8 +15,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import javax.persistence.EntityNotFoundException;
-
 @Controller
 @RequestMapping("/file")
 public class FileController {
@@ -37,10 +35,6 @@ public class FileController {
         } catch (DataIntegrityViolationException e) {
 
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-
-        } catch (BadRequestException e) {
-
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
 
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -55,7 +49,7 @@ public class FileController {
             File file = fileService.findById(id);
 
             return new ResponseEntity<>(file, HttpStatus.OK);
-        } catch (EntityNotFoundException e) {
+        } catch (NotFoundException e) {
 
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         } catch (Exception e) {
@@ -70,15 +64,12 @@ public class FileController {
         try {
 
             return new ResponseEntity<>(fileService.update(file), HttpStatus.OK);
-
         } catch (HibernateOptimisticLockingFailureException e) {
 
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-
         } catch (DataIntegrityViolationException e) {
 
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-
         } catch (Exception e) {
 
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -91,11 +82,7 @@ public class FileController {
         try {
 
             fileService.delete(id);
-            return new ResponseEntity<>("Deleted suxessfuly", HttpStatus.OK);
-
-        } catch (EntityNotFoundException e) {
-
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            return new ResponseEntity<>("Deleted successfully", HttpStatus.OK);
         } catch (Exception e) {
 
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -109,7 +96,6 @@ public class FileController {
         try {
 
             return new ResponseEntity<>(fileService.put(storageId, fileId), HttpStatus.OK);
-
         } catch (NotFoundException e) {
 
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
